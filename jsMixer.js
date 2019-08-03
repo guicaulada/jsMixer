@@ -337,7 +337,7 @@ class MixerAPI extends ExtendableProxy {
       inviteTeamUser: [`POST`, `/teams/${params[0]}/users`, params[1]],
       removeTeamUser: [`DELETE`, `/teams/${params[0]}/users/${params[1]}`],
       acceptTeamInvite: [`PUT`, `/teams/${params[0]}/users/${params[1]}`],
-      // /test Streams
+      // /testStreams
       getChannelTestStreamSettings: [`GET`, `/testStreams/${params[0]}`],
       updateChannelTestStreamSettings: [`PUT`, `/testStreams/${params[0]}`, params[1]],
       // /transcodes
