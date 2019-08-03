@@ -1,31 +1,47 @@
-function isNode() {
+isNode = () => {
   return typeof module !== 'undefined' && module.exports
 }
 
-class ExtendableProxy {
+ExtendableProxy = class {
   constructor(getset={}) {
     return new Proxy(this, getset);
   }
 }
 
 class MixerAPI extends ExtendableProxy {
-  constructor(clientId, secretOrScope, scope) {
+  constructor(clientId, secretOrScopeOrOAuth, scopeOrOAuth) {
     super({
       get: function (mapi, func) {
         if (mapi[func] != null) return mapi[func]
         return function (...params) { return mapi.perform(func, ...params) }
       }
     })
-    this.clientId = clientId
-    if (scope) {
-      this.scopes = scope
-      this.secret = secretOrScope
-    } else {
-      this.scope = secretOrScope
-    }
     this.url = 'https://mixer.com/api/v1'
+    this.clientId = clientId
     this.headers = {
       'Client-ID': `${this.clientId}`,
+    }
+
+    if (scopeOrOAuth) {
+      this.secret = secretOrScopeOrOAuth
+      this.setOAuthOrScope(scopeOrOAuth)
+    } else {
+      this.setOAuthOrScope(secretOrScopeOrOAuth)
+    }
+  }
+  
+  setOAuthOrScope(OAuthOrScope) {
+    if (OAuthOrScope && OAuthOrScope.constructor.name === 'Array') {
+      this.scope = OAuthOrScope
+    } else if (OAuthOrScope && OAuthOrScope.constructor.name === 'String') {
+      if (OAuthOrScope.includes('oauth:')) {
+        this.oauth = OAuthOrScope.replace('oauth:', '')
+        this.headers['Authorization'] = `Bearer ${this.oauth}`
+      } else {
+        this.scope = [OAuthOrScope]
+      }
+    } else {
+      throw new TypeError('Invalid scope or oauth, expected String or Array.')
     }
   }
 
@@ -33,10 +49,12 @@ class MixerAPI extends ExtendableProxy {
     return new Promise(resolve => setTimeout(resolve, t))
   }
 
-  async oauth() {
-    let o = { client_id: this.clientId, scope: this.scope.join(' ') }
-    if (this.secret) o.client_secret = this.secret
-    let sc = await this.getOAuthShortcode(o)
+  async shortcodeAuth() {
+    let sc = await this.getOAuthShortcode({ 
+      client_id: this.clientId, 
+      client_secret: this.secret, 
+      scope: this.scope.join(' ')
+    })
     console.log(`jsMixer is trying to authenticate, please visit https://mixer.com/go?code=${sc.code}`)
     let code = false
     while (!code) {
@@ -45,6 +63,7 @@ class MixerAPI extends ExtendableProxy {
         if (!check.code) throw new Error()
         code = check.code
         console.log(`Shortcode authentication successful!`)
+        break
       } catch (err) {
         console.log(`Still waiting for authentication, ${sc.expires_in} seconds left...`)
       }
@@ -52,12 +71,13 @@ class MixerAPI extends ExtendableProxy {
         console.log('Shortcode authentication failed!')
         process.exit()
       }
-      await this.delay(2000)
-      sc.expires_in-=2
+      await this.delay(5000)
+      sc.expires_in-=5
     }
     this.oauth = await this.getOAuthToken({
-      client_id: this.clientId,
       code: code,
+      client_id: this.clientId,
+      client_secret: this.secret,
       grant_type: 'authorization_code'
     })
     this.headers['Authorization'] = `${this.oauth.token_type} ${this.oauth.access_token}`
@@ -65,6 +85,7 @@ class MixerAPI extends ExtendableProxy {
       try {
         this.oauth = await this.getOAuthToken({
           client_id: this.clientId,
+          client_secret: this.secret,
           refresh_token: this.oauth.refresh_token,
           grant_type: 'refresh_token'
         })
@@ -78,22 +99,17 @@ class MixerAPI extends ExtendableProxy {
   }
 
   send(method, path, params) {
-    var self = this
-    return new Promise(function (resolve, reject) {
-      var request = false
-      if (isNode()) {
-        request = require('xmlhttprequest').XMLHttpRequest
-      } else {
-        request = XMLHttpRequest
-      }
+    let self = this
+    return new Promise((resolve, reject) =>  {
+      let request = isNode() ? require('xmlhttprequest').XMLHttpRequest : XMLHttpRequest
       if (request) {
-        var http_request = new request()
+        let http_request = new request()
         http_request.open(method, self.url+path, true)
-        for (var h in self.headers) {
+        for (let h in self.headers) {
           http_request.setRequestHeader(h, self.headers[h])
         }
         http_request.send(JSON.stringify(params))
-        http_request.onreadystatechange = function () {
+        http_request.onreadystatechange = () => {
           if (http_request.readyState == 4) {
             if (Number(http_request.status.toString()[0]) == 2) {
               try {
@@ -118,13 +134,13 @@ class MixerAPI extends ExtendableProxy {
 
   perform(action, ...params) {
     const method = {
-      // Achievements
+      // /achievements
       getAchievements: [`GET`, `/achievements`],
-      // Broadcasts
+      // /broadcasts
       getCurrentBroadcaster: [`GET`, `/broadcasts/current`],
       getBroadcaster: [`GET`, `/broadcasts/${params[0]}`],
       getBroadcasterManifest: [`GET`, `/broadcasts/${params[0]}/manifest.${params[1]}`],
-      // Channels
+      // /channels
       getChannels: [`GET`, `/channels?${this.serialize(params[0])}`],
       getChannel: [`GET`, `/channels/${params[0]}`],
       getChannelDetails: [`GET`, `/channels/${params[0]}/details`],
@@ -176,47 +192,47 @@ class MixerAPI extends ExtendableProxy {
       setChannelBanner: [`POST`, `/channels/${params[0]}/banner`, params[1]],
       deleteChannelBanner: [`DELETE`, `/channels/${params[0]}/banner`],
       getChannelBroadcast: [`GET`, `/channels/${params[0]}/broadcast?${this.serialize(params[1])}`],
-      // Chats
+      // /chats
       joinChat: [`GET`, `/chats/${params[0]}`],
       joinIfNotBigEvent: [`GET`, `/chats/${params[0]}/joinIfNotBigEvent`],
       joinChatAnonymously: [`GET`, `/chats/${params[0]}/anonymous`],
       getChatFriends: [`GET`, `/chats/${params[0]}/friends?${this.serialize(params[1])}`],
       getChatHistory: [`GET`, `/chats/${params[0]}/history?${this.serialize(params[1])}`],
-      // Clips
+      // /clips
       canClip: [`GET`, `/clips/broadcasts/${params[0]}/canClip`],
       createClip: [`POST`, `/clips/create`, params[0]],
       deleteClip: [`DELETE`, `/clips/${params[0]}`],
       getClip: [`GET`, `/clips/${params[0]}`],
       updateClip: [`POST`, `/clips/${params[0]}/metadata`, params[1]],
       getChannelClips: [`GET`, `/clips/channels/${params[0]}`],
-      // Confetti
+      // /confetti
       createConfetti: [`PUT`, `/confetti`, params[0]],
       getConfetti: [`GET`, `/confetti/${params[0]}`],
       updateConfetti: [`PATCH`, `/confetti/${params[0]}`, params[1]],
       deleteConfetti: [`DELETE`, `/confetti/${params[0]}`],
-      // Costreams
+      // /costreams
       getCostreams: [`GET`, `/costreams/${params[0]}`],
       updateCostream: [`PATCH`, `/costreams/${params[0]}`, params[1]],
       deleteCostreamChannel: [`DELETE`, `/costreams/${params[0]}/channels/${params[1]}`],
       inviteCostreamChannel: [`POST`, `/costreams/invite`, params[0]],
       getCurrentCostream: [`GET`, `/costreams/current`],
       leaveCurrentCostream: [`DELETE`, `/costreams/current`],
-      // Delve
+      // /delve
       getDelveHome: [`GET`, `/delve/home?${this.serialize(params[0])}`],
       getDelveMixPlayFilters: [`GET`, `/delve/mixPlayFilters`],
       getDelveOnlyOnMixer: [`GET`, `/delve/onlyOnMixer?${this.serialize(params[0])}`],
-      // Frontend
+      // /frontendVersions
       getFrontendVersions: [`GET`, `/frontendVersions?${this.serialize(params[0])}`],
-      // Hooks
+      // /hooks
       getWebhooks: [`GET`, `/hooks`],
       createWebhook: [`POST`, `/hooks`, params[0]],
       getWebhook: [`GET`, `/hooks/${params[0]}`],
       deactivateWebhook: [`POST`, `/hooks/${params[0]}/deactivate`],
       renewWebhook: [`POST`, `/hooks/${params[0]}/renew`, params[1]],
-      // Ingest
+      // /ingest
       getIngests: [`GET`, `/ingests`],
       getBestIngest: [`GET`, `/ingests/best`],
-      // Interactive
+      // /interactive
       joinInteractiveGame: [`GET`, `/interactive/${params[0]}`],
       getInteractiveHosts: [`GET`, `/interactive/hosts`],
       getVnextInteractiveHosts: [`GET`, `/interactive/hosts/vnext`],
@@ -239,22 +255,22 @@ class MixerAPI extends ExtendableProxy {
       deleteInteractiveGameVersion: [`DELETE`, `/interactive/versions/${params[0]}`],
       getInteractiveGamePerformance: [`GET`, `/interactive/versions/${params[0]}/analytics/performance?${this.serialize(params[1])}`],
       getInteractiveGameViewersMetrics: [`GET`, `/interactive/versions/${params[0]}/analytics/viewersMetrics?${this.serialize(params[1])}`],
-      // Invoices
+      // /invoices
       getInvoice: [`GET`, `/invoices/${params[0]}`],
       captureInvoice: [`POST`, `/invoices/${params[0]}/capture`, params[1]],
-      // jwt
+      // /jwt
       getJWTToken: [`POST`, `/jwt/authorize`],
-      // Language
+      // /language
       getLanguages: [`GET`, `/language/channels`],
       getActiveLanguages: [`GET`, `/language/channels/active`],
       getAvailableLanguages: [`GET`, `/language/channels/available`],
-      // Notifications
+      // /notifications
       getNotification: [`GET`, `/notifications/${params[0]}`],
       shareSubAnniversary: [`POST`, `/notifications/${params[0]}/shareSub`],
       ignoreSubAnniversary: [`DELETE`, `/notifications/${params[0]}/shareSub`],
       answerCostreamInvite: [`POST`, `/notifications/${params[0]}/costream/${params[1]}`],
       emailUnsubscribe: [`POST`, `/notifications/emailUnsubscribe`, params[0]],
-      // OAuth
+      // /oauth
       revokeOAuthClient: [`DELETE`, `/oauth/authorized/${params[0]}`],
       createOAuthClient: [`POST`, `/oauth/clients`, params[0]],
       getOAuthClient: [`GET`, `/oauth/clients/${params[0]}`],
@@ -279,94 +295,95 @@ class MixerAPI extends ExtendableProxy {
       loginDiscord: [`POST`, `/oauth/discord/login`],
       getDiscordProfile: [`GET`, `/oauth/discord/profile`],
       registerDiscordOAuth: [`POST`, `/oauth/discord/register`],
-      // Recordings
-      func: [`GET`, `/recordings`],
-      func: [`GET`, `/recordings/${params[0]}`],
-      func: [`PATCH`, `/recordings/${params[0]}`, params[1]],
-      func: [`DELETE`, `/recordings/${params[0]}`],
-      func: [`POST`, `/recordings/${params[0]}/seen`, params[1]],
-      func: [`PATCH`, `/recordings/${params[0]}/chat`, params[1]],
-      // Redeemables
-      func: [`POST`, `/redeemables`, params[1]],
-      func: [`GET`, `/redeemables/${params[0]}`],
-      func: [`POST`, `/redeemables/redeem`, params[1]],
-      // Resources
-      func: [`GET`, `/resources/${params[0]}`],
-      func: [`DELETE`, `/resources/${params[0]}`],
-      // Seen
-      func: [`GET`, `/seen/${params[0]}/${params[0]}`],
-      func: [`PUT`, `/seen/${params[0]}/${params[0]}`, params[1]],
-      // Shares
-      func: [`GET`, `/shares/${params[0]}`],
-      func: [`POST`, `/shares/${params[0]}`, params[1]],
-      func: [`DELETE`, `/shares/${params[0]}`],
-      func: [`DELETE`, `/shares/${params[0]}/${params[0]}`],
-      // Subscriptions
-      func: [`POST`, `/subscriptions`, params[1]],
-      func: [`GET`, `/subscriptions/${params[0]}`],
-      func: [`PATCH`, `/subscriptions/${params[0]}`, params[1]],
-      func: [`DELETE`, `/subscriptions/${params[0]}`],
-      // Suggestions
-      func: [`GET`, `/suggestions/channels`],
-      // Teams
-      func: [`GET`, `/teams`],
-      func: [`POST`, `/teams`, params[1]],
-      func: [`GET`, `/teams/${params[0]}`],
-      func: [`PUT`, `/teams/${params[0]}`, params[1]],
-      func: [`DELETE`, `/teams/${params[0]}`],
-      func: [`POST`, `/teams/${params[0]}/background`, params[1]],
-      func: [`POST`, `/teams/${params[0]}/logo`, params[1]],
-      func: [`PUT`, `/teams/${params[0]}/owner`, params[1]],
-      func: [`GET`, `/teams/${params[0]}/users`],
-      func: [`POST`, `/teams/${params[0]}/users`, params[1]],
-      func: [`DELETE`, `/teams/${params[0]}/users/${params[0]}`],
-      func: [`PUT`, `/teams/${params[0]}/users/${params[0]}`, params[1]],
-      // Test Streams
-      func: [`GET`, `/testStreams/${params[0]}`],
-      func: [`PUT`, `/testStreams/${params[0]}`, params[1]],
-      func: [`GET`, `/transcodes`],
-      // Types
-      func: [`GET`, `/types`],
-      func: [`GET`, `/types/lookup`],
-      func: [`GET`, `/types/published`],
-      func: [`GET`, `/types/${params[0]}`],
-      func: [`PUT`, `/types/${params[0]}`, params[1]],
-      func: [`PUT`, `/types/${params[0]}/thumbnail`, params[1]],
-      func: [`PUT`, `/types/${params[0]}/background`, params[1]],
-      func: [`GET`, `/types/${params[0]}/channels`],
-      func: [`GET`, `/types/${params[0]}/analytics/viewersMetrics`],
-      func: [`GET`, `/types/${params[0]}/analytics/rank`],
-      // Users
-      func: [`GET`, `/users/current`],
-      func: [`GET`, `/users/current/frontendVersion`],
-      func: [`GET`, `/users/search`],
-      func: [`GET`, `/users/${params[0]}`],
-      func: [`PATCH`, `/users/${params[0]}`, params[1]],
-      func: [`GET`, `/users/${params[0]}/achievements`],
-      func: [`GET`, `/users/${params[0]}/avatar`],
-      func: [`POST`, `/users/${params[0]}/avatar`, params[1]],
-      func: [`DELETE`, `/users/${params[0]}/avatar`],
-      func: [`GET`, `/users/${params[0]}/follows`],
-      func: [`PATCH`, `/users/${params[0]}/frontendVersion`, params[1]],
-      func: [`GET`, `/users/${params[0]}/invoices`],
-      func: [`GET`, `/users/${params[0]}/links`],
-      func: [`GET`, `/users/${params[0]}/notifications`],
-      func: [`GET`, `/users/${params[0]}/notifications/preferences`],
-      func: [`PATCH`, `/users/${params[0]}/notifications/preferences`, params[1]],
-      func: [`GET`, `/users/${params[0]}/oauth/authorized`],
-      func: [`GET`, `/users/${params[0]}/oauth/clients`],
-      func: [`GET`, `/users/${params[0]}/preferences`],
-      func: [`POST`, `/users/${params[0]}/preferences`, params[1]],
-      func: [`GET`, `/users/${params[0]}/recurringPayments`],
-      func: [`GET`, `/users/${params[0]}/redeemables`],
-      func: [`GET`, `/users/${params[0]}/resources`],
-      func: [`GET`, `/users/${params[0]}/sessions`],
-      func: [`GET`, `/users/${params[0]}/subscriptions`],
-      func: [`GET`, `/users/${params[0]}/teams`],
-      func: [`GET`, `/users/${params[0]}/teams/limit`],
-      func: [`PUT`, `/users/${params[0]}/teams/primary`, params[1]],
-      func: [`GET`, `/users/${params[0]}/details`],
-      func: [`GET`, `/users/${params[0]}/recentlyViewedChannels`]
+      // /recordings
+      getRecordings: [`GET`, `/recordings?${this.serialize(params[0])}`],
+      getRecording: [`GET`, `/recordings/${params[0]}?${this.serialize(params[1])}`],
+      updateRecording: [`PATCH`, `/recordings/${params[0]}`, params[1]],
+      deleteRecording: [`DELETE`, `/recordings/${params[0]}`],
+      markRecordingAsSeen: [`POST`, `/recordings/${params[0]}/seen`, params[1]],
+      changeRecordingChatLog: [`PATCH`, `/recordings/${params[0]}/chat`, params[1]],
+      // /redeemables
+      createRedeemable: [`POST`, `/redeemables`, params[0]],
+      getRedeemable: [`GET`, `/redeemables/${params[0]}`],
+      redeemRedeemable: [`POST`, `/redeemables/redeem`, params[0]],
+      // /resources
+      getResource: [`GET`, `/resources/${params[0]}`],
+      deleteResource: [`DELETE`, `/resources/${params[0]}`],
+      // /seen
+      getSeen: [`GET`, `/seen/${params[0]}/${params[1]}?${this.serialize(params[2])}`],
+      markAsSeen: [`PUT`, `/seen/${params[0]}/${params[1]}`, params[2]],
+      // /shares
+      getShares: [`GET`, `/shares/${params[0]}?${this.serialize(params[1])}`],
+      createShare: [`POST`, `/shares/${params[0]}`, params[1]],
+      deleteShare: [`DELETE`, `/shares/${params[0]}`, params[1]],
+      deleteShareById: [`DELETE`, `/shares/${params[0]}/${params[1]}`],
+      // /subscriptions
+      createSubscription: [`POST`, `/subscriptions`, params[0]],
+      getSubscription: [`GET`, `/subscriptions/${params[0]}`],
+      renewSubscription: [`PATCH`, `/subscriptions/${params[0]}`, params[1]],
+      cancelSubscription: [`DELETE`, `/subscriptions/${params[0]}`, params[1]],
+      // /suggestions
+      getSuggestions: [`GET`, `/suggestions/channels?${this.serialize(params[0])}`],
+      // /teams
+      getTeams: [`GET`, `/teams?${this.serialize(params[0])}`],
+      createTeam: [`POST`, `/teams`, params[0]],
+      getTeam: [`GET`, `/teams/${params[0]}`],
+      updateTeam: [`PUT`, `/teams/${params[0]}`, params[1]],
+      deleteTeam: [`DELETE`, `/teams/${params[0]}`],
+      setTeamBackground: [`POST`, `/teams/${params[0]}/background`, params[1]],
+      setTeamLogo: [`POST`, `/teams/${params[0]}/logo`, params[1]],
+      setTeamOwner: [`PUT`, `/teams/${params[0]}/owner`, params[1]],
+      getTeamUsers: [`GET`, `/teams/${params[0]}/users?${this.serialize(params[1])}`],
+      inviteTeamUser: [`POST`, `/teams/${params[0]}/users`, params[1]],
+      removeTeamUser: [`DELETE`, `/teams/${params[0]}/users/${params[1]}`],
+      acceptTeamInvite: [`PUT`, `/teams/${params[0]}/users/${params[1]}`],
+      // /test Streams
+      getChannelTestStreamSettings: [`GET`, `/testStreams/${params[0]}`],
+      updateChannelTestStreamSettings: [`PUT`, `/testStreams/${params[0]}`, params[1]],
+      // /transcodes
+      getTranscodes: [`GET`, `/transcodes`],
+      // /types
+      getTypes: [`GET`, `/types?${this.serialize(params[0])}`],
+      lookupTypes: [`GET`, `/types/lookup?${this.serialize(params[0])}`],
+      getTypesByPublisher: [`GET`, `/types/published?${this.serialize(params[0])}`],
+      getType: [`GET`, `/types/${params[0]}`],
+      updateType: [`PUT`, `/types/${params[0]}`, params[1]],
+      updateTypeThumbnail: [`PUT`, `/types/${params[0]}/thumbnail`, params[1]],
+      updateTypBackground: [`PUT`, `/types/${params[0]}/background`, params[1]],
+      getChannelsByType: [`GET`, `/types/${params[0]}/channels?${this.serialize(params[1])}`],
+      getTypeViewersMetrics: [`GET`, `/types/${params[0]}/analytics/viewersMetrics?${this.serialize(params[1])}`],
+      getTypeRank: [`GET`, `/types/${params[0]}/analytics/rank?${this.serialize(params[1])}`],
+      // /users
+      getCurrentUser: [`GET`, `/users/current`],
+      getCurrentUserFrontendVersion: [`GET`, `/users/current/frontendVersion`],
+      searchUsers: [`GET`, `/users/search?${this.serialize(params[0])}`],
+      getUser: [`GET`, `/users/${params[0]}`],
+      updateUser: [`PATCH`, `/users/${params[0]}`, params[1]],
+      getUserAchievements: [`GET`, `/users/${params[0]}/achievements`],
+      getUserAvatar: [`GET`, `/users/${params[0]}/avatar?${this.serialize(params[1])}`],
+      updateUserAvatar: [`POST`, `/users/${params[0]}/avatar`, params[1]],
+      deleteUserAvatar: [`DELETE`, `/users/${params[0]}/avatar`],
+      getUserFollows: [`GET`, `/users/${params[0]}/follows?${this.serialize(params[1])}`],
+      updateUserFrontendVersion: [`PATCH`, `/users/${params[0]}/frontendVersion`, params[1]],
+      getUserInvoices: [`GET`, `/users/${params[0]}/invoices?${this.serialize(params[1])}`],
+      getUserOAuthLink: [`GET`, `/users/${params[0]}/links`],
+      getUserNotifications: [`GET`, `/users/${params[0]}/notifications?${this.serialize(params[1])}`],
+      getUserNotificationPreferences: [`GET`, `/users/${params[0]}/notifications/preferences`],
+      updateUserNotificationPreferences: [`PATCH`, `/users/${params[0]}/notifications/preferences`, params[1]],
+      getUserOAuthAuthorizations: [`GET`, `/users/${params[0]}/oauth/authorized`],
+      getUserOAuthClients: [`GET`, `/users/${params[0]}/oauth/clients`],
+      getUserPreferences: [`GET`, `/users/${params[0]}/preferences`],
+      setUserPreferences: [`POST`, `/users/${params[0]}/preferences`, params[1]],
+      getUserRecurringPayments: [`GET`, `/users/${params[0]}/recurringPayments?${this.serialize(params[1])}`],
+      getUserRedeemables: [`GET`, `/users/${params[0]}/redeemables?${this.serialize(params[1])}`],
+      getUserResources: [`GET`, `/users/${params[0]}/resources`],
+      getUserSessions: [`GET`, `/users/${params[0]}/sessions`],
+      getUserSubscriptions: [`GET`, `/users/${params[0]}/subscriptions?${this.serialize(params[1])}`],
+      getUserTeams: [`GET`, `/users/${params[0]}/teams`],
+      getUserTeamsLimit: [`GET`, `/users/${params[0]}/teams/limit`],
+      setUserPrimaryTeam: [`PUT`, `/users/${params[0]}/teams/primary`, params[1]],
+      getUserDetails: [`GET`, `/users/${params[0]}/details`],
+      getUserRecentlyViewedChannels: [`GET`, `/users/${params[0]}/recentlyViewedChannels`]
     }
 
     if (method[action] == undefined) {
@@ -382,8 +399,9 @@ class MixerAPI extends ExtendableProxy {
   }
 
   serialize(obj) {
-    var str = []
-    for (var p in obj) {
+    if (obj == null) return ""
+    let str = []
+    for (let p in obj) {
       if (obj.hasOwnProperty(p)) {
         if (obj[p].constructor.name == 'Array') {
           for (let e of obj[p]) {

@@ -20,11 +20,16 @@ You can now require and use jsmixer like so:
 ```js
 let MixerAPI = require('jsmixer')
 
-const MIXER_TOKEN = process.env.MIXER_TOKEN
+const MIXER_CLIENT = process.env.MIXER_CLIENT
+const MIXER_SECRET = process.env.MIXER_SECRET
 
-let mapi = new MixerAPI(MIXER_TOKEN, ['user:act_as'])
+let mapi = new MixerAPI(MIXER_CLIENT, MIXER_SECRET, ['user:act_as'])
 
-mapi.auth().then(r => console.log(r)).catch(e => console.log(e))
+mapi.shortcodeAuth().then(async (auth) => {
+  console.log(auth)
+  let user = await mapi.getCurrentUser()
+  console.log(user)
+}).catch(e => console.log(e))
 ```
 
 Refer to the [Mixer API Documentation](https://dev.mixer.com/rest/index.html) and the [jsMixer Example](https://github.com/Sighmir/jsMixer/tree/master/example) for more information.  
