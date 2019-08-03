@@ -34,9 +34,9 @@ class MixerAPI extends ExtendableProxy {
   }
 
   async oauth() {
-    let sc = await this.getOAuthShortcode({
-      client_id: this.clientId, scope: this.scope.join(' ')
-    })
+    let o = { client_id: this.clientId, scope: this.scope.join(' ') }
+    if (this.secret) o.client_secret = this.secret
+    let sc = await this.getOAuthShortcode(o)
     console.log(`jsMixer is trying to authenticate, please visit https://mixer.com/go?code=${sc.code}`)
     let code = false
     while (!code) {
