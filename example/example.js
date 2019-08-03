@@ -1,4 +1,4 @@
-let MixerAPI = require('..') //jsmixer
+let MixerAPI = require('..') //@sighmir/jsmixer
 
 const MIXER_CLIENT = process.env.MIXER_CLIENT
 const MIXER_SECRET = process.env.MIXER_SECRET
