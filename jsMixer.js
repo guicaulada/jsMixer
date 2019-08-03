@@ -193,9 +193,9 @@ class MixerAPI extends ExtendableProxy {
       deleteChannelBanner: [`DELETE`, `/channels/${params[0]}/banner`],
       getChannelBroadcast: [`GET`, `/channels/${params[0]}/broadcast?${this.serialize(params[1])}`],
       // /chats
-      joinChat: [`GET`, `/chats/${params[0]}`],
-      joinIfNotBigEvent: [`GET`, `/chats/${params[0]}/joinIfNotBigEvent`],
-      joinChatAnonymously: [`GET`, `/chats/${params[0]}/anonymous`],
+      getChat: [`GET`, `/chats/${params[0]}`],
+      getChatIfNotBigEvent: [`GET`, `/chats/${params[0]}/joinIfNotBigEvent`],
+      getChatAnonymously: [`GET`, `/chats/${params[0]}/anonymous`],
       getChatFriends: [`GET`, `/chats/${params[0]}/friends?${this.serialize(params[1])}`],
       getChatHistory: [`GET`, `/chats/${params[0]}/history?${this.serialize(params[1])}`],
       // /clips
