@@ -112,7 +112,6 @@ class MixerAPI extends ExtendableProxy {
         grant_type: 'refresh_token'
       })
       this.headers['Authorization'] = `${this.oauth.token_type} ${this.oauth.access_token}`
-      console.log('jsMixer refreshed the authorization token before it expired!')
       if (save) this.saveToken()
     } catch (err) {
       console.log(err)
