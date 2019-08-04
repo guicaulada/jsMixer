@@ -8,6 +8,8 @@ ExtendableProxy = class {
   }
 }
 
+if (isNode()) MixerChat = require('./jsMixerChat')
+
 class MixerAPI extends ExtendableProxy {
   constructor(clientId, secretOrScopeOrOAuth, scopeOrOAuth) {
     super({
@@ -28,6 +30,29 @@ class MixerAPI extends ExtendableProxy {
     } else {
       this.setOAuthOrScope(secretOrScopeOrOAuth)
     }
+
+    this.chats = {}
+  }
+
+  join(channel, chat) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let user = await this.getCurrentUser()
+        let args = [channel.id, user.id]
+        if (chat.authkey) args.push(chat.authkey)
+        this.chats[channel.id] = new MixerChat(chat.endpoints[0])
+        this.chats[channel.id].onopen = async () => {
+          try {
+            await this.chats[channel.id].auth(...args)
+            resolve(this.chats[channel.id])
+          } catch(err) {
+            console.log(err)
+          }
+        }
+      } catch(err) {
+        reject(err)
+      }
+    })
   }
   
   setOAuthOrScope(OAuthOrScope) {

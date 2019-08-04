@@ -1,6 +1,6 @@
 {
   "name": "@sighmir/jsmixer",
-  "version": "1.0.2",
+  "version": "1.1.2",
   "description": "Javascript Mixer API",
   "main": "index.js",
   "directories": {
@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/Sighmir/jsMixer#readme",
   "dependencies": {
+    "websocket": "^1.0.29",
     "xmlhttprequest": "^1.8.0"
   },
   "keywords": [

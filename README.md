@@ -23,12 +23,17 @@ let MixerAPI = require('@sighmir/jsmixer')
 const MIXER_CLIENT = process.env.MIXER_CLIENT
 const MIXER_SECRET = process.env.MIXER_SECRET
 
-let mapi = new MixerAPI(MIXER_CLIENT, MIXER_SECRET, ['user:act_as'])
+let mapi = new MixerAPI(MIXER_CLIENT, MIXER_SECRET, ['chat:connect', 'chat:chat'])
 
-mapi.shortcodeAuth().then(async (auth) => {
-  console.log(auth)
+mapi.shortcodeAuth().then(async () => {
   let user = await mapi.getCurrentUser()
-  console.log(user)
+  let chat = await mapi.getChat(user.channel.id)
+  chat = await mapi.join(user.channel, chat)
+  console.log(`Connected to ${user.channel.token}`)
+  chat.msg('Hello World!')
+  chat.addMessageHandler((data) => {
+    console.log(`${data.user_name}: ${data.message.message[0].text}`)
+  })
 }).catch(e => console.log(e))
 ```
 
@@ -39,6 +44,7 @@ Refer to the [Mixer API Documentation](https://dev.mixer.com/rest/index.html) an
 You can also load this script on your browser like so:
 
 ```html
+<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixerChat.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixer.js'></script>
 ```
 
