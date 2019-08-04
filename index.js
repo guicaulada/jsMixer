@@ -1,1 +1,1 @@
-module.exports = require("./jsMixer.js");
+module.exports = require("./jsMixer");

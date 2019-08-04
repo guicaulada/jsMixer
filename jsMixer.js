@@ -99,14 +99,13 @@ class MixerAPI extends ExtendableProxy {
   }
 
   send(method, path, params) {
-    let self = this
     return new Promise((resolve, reject) =>  {
       let request = isNode() ? require('xmlhttprequest').XMLHttpRequest : XMLHttpRequest
       if (request) {
         let http_request = new request()
-        http_request.open(method, self.url+path, true)
-        for (let h in self.headers) {
-          http_request.setRequestHeader(h, self.headers[h])
+        http_request.open(method, this.url+path, true)
+        for (let h in this.headers) {
+          http_request.setRequestHeader(h, this.headers[h])
         }
         http_request.send(JSON.stringify(params))
         http_request.onreadystatechange = () => {
@@ -395,7 +394,7 @@ class MixerAPI extends ExtendableProxy {
   }
 
   setRequestHeader(header, value) {
-    self.headers[header] = value
+    this.headers[header] = value
   }
 
   serialize(obj) {
