@@ -25,7 +25,7 @@ const MIXER_SECRET = process.env.MIXER_SECRET
 
 let mapi = new MixerAPI(MIXER_CLIENT, MIXER_SECRET, ['chat:connect', 'chat:chat'])
 
-mapi.shortcodeAuth().then(async () => {
+mapi.auth().then(async () => {
   let user = await mapi.getCurrentUser()
   let chat = await mapi.getChat(user.channel.id)
   chat = await mapi.join(user.channel, chat)

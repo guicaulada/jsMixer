@@ -33,27 +33,6 @@ class MixerAPI extends ExtendableProxy {
 
     this.chats = {}
   }
-
-  join(channel, chat) {
-    return new Promise(async (resolve, reject) => {
-      try {
-        let user = await this.getCurrentUser()
-        let args = [channel.id, user.id]
-        if (chat.authkey) args.push(chat.authkey)
-        this.chats[channel.id] = new MixerChat(chat.endpoints[0])
-        this.chats[channel.id].onopen = async () => {
-          try {
-            await this.chats[channel.id].auth(...args)
-            resolve(this.chats[channel.id])
-          } catch(err) {
-            console.log(err)
-          }
-        }
-      } catch(err) {
-        reject(err)
-      }
-    })
-  }
   
   setOAuthOrScope(OAuthOrScope) {
     if (OAuthOrScope && OAuthOrScope.constructor.name === 'Array') {
@@ -70,14 +49,29 @@ class MixerAPI extends ExtendableProxy {
     }
   }
 
-  delay(t) {
-    return new Promise(resolve => setTimeout(resolve, t))
+  getExistingToken() {
+    let fs = require('fs')
+    let path = require('path')
+    try {
+      return JSON.parse(fs.readFileSync(path.join(__dirname, 'refresh_token')))
+    } catch (err) {
+      return false
+    }
   }
 
-  async shortcodeAuth() {
-    let sc = await this.getOAuthShortcode({ 
-      client_id: this.clientId, 
-      client_secret: this.secret, 
+  saveToken() {
+    let fs = require('fs')
+    let path = require('path')
+    fs.writeFile(path.join(__dirname,'refresh_token'), JSON.stringify({
+      refresh_token: this.oauth.refresh_token,
+      timestamp: (new Date()).getTime()
+    }), () => {})
+  }
+
+  async getAuthenticationToken(save=true) {
+    let sc = await this.getOAuthShortcode({
+      client_id: this.clientId,
+      client_secret: this.secret,
       scope: this.scope.join(' ')
     })
     console.log(`jsMixer is trying to authenticate, please visit https://mixer.com/go?code=${sc.code}`)
@@ -97,7 +91,7 @@ class MixerAPI extends ExtendableProxy {
         process.exit()
       }
       await this.delay(5000)
-      sc.expires_in-=5
+      sc.expires_in -= 5
     }
     this.oauth = await this.getOAuthToken({
       code: code,
@@ -106,21 +100,61 @@ class MixerAPI extends ExtendableProxy {
       grant_type: 'authorization_code'
     })
     this.headers['Authorization'] = `${this.oauth.token_type} ${this.oauth.access_token}`
-    setInterval(async () => {
-      try {
-        this.oauth = await this.getOAuthToken({
-          client_id: this.clientId,
-          client_secret: this.secret,
-          refresh_token: this.oauth.refresh_token,
-          grant_type: 'refresh_token'
-        })
-        this.headers['Authorization'] = `${this.oauth.token_type} ${this.oauth.access_token}`
-        console.log('jsMixer refreshed the authorization token before it expired!')
-      } catch(err) {
-        console.log(err)
-      }
-    }, (this.oauth.expires_in-300)*1000)
+    if (save) this.saveToken()
+  }
+
+  async refreshToken(save=true) {
+    try {
+      this.oauth = await this.getOAuthToken({
+        client_id: this.clientId,
+        client_secret: this.secret,
+        refresh_token: this.oauth.refresh_token,
+        grant_type: 'refresh_token'
+      })
+      this.headers['Authorization'] = `${this.oauth.token_type} ${this.oauth.access_token}`
+      console.log('jsMixer refreshed the authorization token before it expired!')
+      if (save) this.saveToken()
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  delay(t) {
+    return new Promise(resolve => setTimeout(resolve, t))
+  }
+
+  async auth(save = true) {
+    let token = this.getExistingToken()
+    let now = (new Date()).getTime()
+    if (token && !isNaN(token.timestamp) && now - token.timestamp < 365*24*3600*1000) {
+      this.oauth = {refresh_token: token.refresh_token}
+      await this.refreshToken(save)
+    } else {
+      await this.getAuthenticationToken(save)
+    }
+    setInterval(this.refreshToken, (this.oauth.expires_in-300)*1000)
     return this.oauth
+  }
+
+  join(channel, chat) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let user = await this.getCurrentUser()
+        let args = [channel.id, user.id]
+        if (chat.authkey) args.push(chat.authkey)
+        this.chats[channel.id] = new MixerChat(chat.endpoints[0])
+        this.chats[channel.id].onopen = async () => {
+          try {
+            await this.chats[channel.id].auth(...args)
+            resolve(this.chats[channel.id])
+          } catch (err) {
+            console.log(err)
+          }
+        }
+      } catch (err) {
+        reject(err)
+      }
+    })
   }
 
   send(method, path, params) {
