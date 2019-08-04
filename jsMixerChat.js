@@ -31,21 +31,6 @@ class MixerChat extends ExtendableProxy {
     this.eventHandlers = {}
     this.replyHandlers = []
     this.anyEventHandlers = []
-    this.events = [
-      'WelcomeEvent', 
-      'ChatMessage', 
-      'UserJoin', 
-      'UserLeave', 
-      'PollStart', 
-      'PollEnd', 
-      'DeleteMessage',
-      'PurgeMessage',
-      'ClearMessage',
-      'UserUpdate',
-      'UserTimeout',
-      'SkillAttribution',
-      'DeleteSkillAttribution'
-    ]
     this.methods = {
       auth: 0,
       msg: 2,
@@ -68,7 +53,7 @@ class MixerChat extends ExtendableProxy {
       let data = JSON.parse(message)
       if (data.type == 'event') {
         this.anyEventHandlers.forEach(async handler => {
-          handler(data.data)
+          handler(data.event, data.data)
         })
         if (this.eventHandlers[data.event]) {
           this.eventHandlers[data.event].forEach(async handler => {
@@ -86,26 +71,40 @@ class MixerChat extends ExtendableProxy {
 
   addEventHandler(event, func) {
     if (typeof event === 'function') {
-      this.anyEventHandlers.push(func)
+      this.anyEventHandlers.push(event)
+    } else if (typeof event === 'string' && typeof func === 'function') {
+      if (!this.eventHandlers[event]) this.eventHandlers[event] = []
+      this.eventHandlers[event].push(func)
+    } else {
+      throw new TypeError('Invalid type for event handler, expected (string, function) or (function)')
     }
-    if (!this.eventHandlers[event]) this.eventHandlers[event] = []
-    this.eventHandlers[event].push(func)
   }
 
   deleteEventHandler(event, func) {
     if (typeof event === 'function') {
-      this.anyEventHandlers.filter(f => f != func)
+      this.anyEventHandlers.filter(f => f != event)
+    } else if (typeof event === 'string' && typeof func === 'function') {
+      if (!this.eventHandlers[event]) this.eventHandlers[event] = []
+      this.eventHandlers[event].filter(f => f != func)
+    } else {
+      throw new TypeError('Invalid type for event handler, expected (string, function) or (function)')
     }
-    if (!this.eventHandlers[event]) this.eventHandlers[event] = []
-    this.eventHandlers[event].filter(f => f != func)
   }
 
   addReplyHandler(func) {
-    this.replyHandlers.push(func)
+    if (typeof func === 'function') {
+      this.replyHandlers.push(func)
+    } else {
+      throw new TypeError('Invalid type for reply handler, expected (function)')
+    }
   }
 
   deleteReplyHandler(func) {
-    this.replyHandlers.filter(f => f != func)
+    if (typeof func === 'function') {
+      this.replyHandlers.filter(f => f != func)
+    } else {
+      throw new TypeError('Invalid type for reply handler, expected (function)')
+    }
   }
 
   addMessageHandler(func) {
