@@ -20,34 +20,21 @@ class MixerChat extends ExtendableProxy {
       get: (parent, name1) => {
         if (parent[name1] != null) return parent[name1]
         if (parent.ws[name1] != null) return parent.ws[name1]
-        if (parent.methods[name1] != null) return parent.method(name1)
-        return new Proxy({}, {
-          get: (proxy, name2) => {
+        if (parent.promise[name1] != null) return parent[name1]
+        return new Proxy(parent.method(name1), {
+          get: (proxy, name2) => { 
             return parent.method(`${name1}:${name2}`)
+          },
+          apply: (proxy, self, args) => {
+            return proxy(...args)
           }
         })
       }
     })
+    this.promise = (new Promise(() => {}))
     this.eventHandlers = {}
     this.replyHandlers = []
     this.anyEventHandlers = []
-    this.methods = {
-      auth: 0,
-      msg: 2,
-      whisper: 5,
-      'vote:choose': 3,
-      'vote:start': 3,
-      timeout: 4,
-      purge: 5,
-      deleteMessage: 10,
-      clearMessages: 11,
-      history: 1,
-      'giveaway:start': 11,
-      ping: 12,
-      attachEmotes: 12,
-      'chat:cancel_skill': 10,
-      optOutEvents: 0
-    }
     this.ws = new WebSocket(url)
     this.ws.on('message', (message) => {
       let data = JSON.parse(message)
@@ -62,8 +49,8 @@ class MixerChat extends ExtendableProxy {
         }
       } else if (data.type == 'reply') {
         this.replyHandlers.forEach(async handler => {
-          if (data.error) handler({error: data.error})
-          else handler(data.data)
+          if (data.error) handler(data.id, {error: data.error})
+          else handler(data.id, data.data)
         })
       }
     })
@@ -116,18 +103,21 @@ class MixerChat extends ExtendableProxy {
   }
 
   method(method) {
-    return (...params) => new Promise((resolve, rejcet) => {
+    return (...params) => new Promise((resolve, reject) => {
+      let id = (new Date).getTime()
       let data = {
         type: `method`,
         method: method,
         arguments: params,
-        id: this.methods[method]
+        id: id
       }
       this.ws.send(JSON.stringify(data))
-      let handler = (data) => {
-        this.deleteReplyHandler(handler)
-        if (data.error) rejcet(data)
-        else resolve(data)
+      let handler = (rid, data) => {
+        if (rid == id) {
+          this.deleteReplyHandler(handler)
+          if (data.error) return reject(data)
+          else return resolve(data)
+        }
       }
       this.addReplyHandler(handler)
     })
