@@ -131,7 +131,7 @@ class MixerAPI extends ExtendableProxy {
     } else {
       await this.getAuthenticationToken(save)
     }
-    setInterval(this.refreshToken, (this.oauth.expires_in-300)*1000)
+    if (this.oauth.expires_in) setInterval(this.refreshToken, (this.oauth.expires_in-300)*1000)
     return this.oauth
   }
 
@@ -142,14 +142,14 @@ class MixerAPI extends ExtendableProxy {
         let args = [channel.id, user.id]
         if (chat.authkey) args.push(chat.authkey)
         this.chats[channel.id] = new MixerChat(chat.endpoints[0])
-        this.chats[channel.id].onopen = async () => {
+        this.chats[channel.id].on('open', async () => {
           try {
             await this.chats[channel.id].auth(...args)
             resolve(this.chats[channel.id])
           } catch (err) {
             console.log(err)
           }
-        }
+        })
       } catch (err) {
         reject(err)
       }

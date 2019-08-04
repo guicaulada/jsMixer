@@ -8,7 +8,7 @@ isNode = () => {
   return typeof module !== 'undefined' && module.exports
 }
 
-if (isNode()) WebSocket = require('websocket').w3cwebsocket;
+if (isNode()) WebSocket = require('ws')
 
 class MixerChat extends ExtendableProxy {
   constructor(url) {
@@ -64,8 +64,8 @@ class MixerChat extends ExtendableProxy {
       optOutEvents: 0
     }
     this.ws = new WebSocket(url)
-    this.ws.onmessage = (message) => {
-      let data = JSON.parse(message.data)
+    this.ws.on('message', (message) => {
+      let data = JSON.parse(message)
       if (data.type == 'event') {
         this.anyEventHandlers.forEach(async handler => {
           handler(data.data)
@@ -81,7 +81,7 @@ class MixerChat extends ExtendableProxy {
           else handler(data.data)
         })
       }
-    }
+    })
   }
 
   addEventHandler(event, func) {
