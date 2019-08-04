@@ -464,7 +464,7 @@ class MixerAPI extends ExtendableProxy {
   }
 
   serialize(obj) {
-    if (obj == null) return ""
+    if (obj == null) return ''
     let str = []
     for (let p in obj) {
       if (obj.hasOwnProperty(p)) {
@@ -477,7 +477,7 @@ class MixerAPI extends ExtendableProxy {
         }
       }
     }
-    return str.join("&")
+    return str.join('&')
   }
 }
 
