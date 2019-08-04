@@ -3,7 +3,7 @@
 **jsMixer** is a Javascript module for working with the [Mixer API](https://dev.mixer.com/rest/index.html).
 
 ## Requirements
-* Tested against Mixer REST API v1.0 and Chat API v2
+* Tested against Mixer REST API v1.0 and Chat API v2.
 * For Node.js you will need the [xmlhttprequest](https://www.npmjs.com/package/xmlhttprequest) library.
 
 ## Documentation ##
