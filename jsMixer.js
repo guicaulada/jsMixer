@@ -115,7 +115,7 @@ class MixerAPI extends ExtendableProxy {
       this.headers['Authorization'] = `${this.oauth.token_type} ${this.oauth.access_token}`
       if (save) this.saveToken()
     } catch (err) {
-      console.log(err)
+      console.error(err)
     }
   }
 
@@ -153,7 +153,7 @@ class MixerAPI extends ExtendableProxy {
             await this.chats[channel.id].auth(...args)
             resolve(this.chats[channel.id])
           } catch (err) {
-            console.log(err)
+            console.error(err)
           }
         })
       } catch (err) {
@@ -452,7 +452,7 @@ class MixerAPI extends ExtendableProxy {
     }
 
     if (method[action] == undefined) {
-      console.log('Unknown method.')
+      console.error(`Unknown method ${action}.`)
       return
     }
 
