@@ -452,7 +452,7 @@ class MixerAPI extends ExtendableProxy {
     }
 
     if (method[action] == undefined) {
-      console.error(`Unknown method ${action}.`)
+      console.error(new Error('Unknown method.'))
       return
     }
 
