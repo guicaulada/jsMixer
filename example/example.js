@@ -17,6 +17,12 @@ mapi.auth().then(async () => {
   chat.addMessageHandler((data) => {
     console.log(`${data.user_name}: ${data.message.message[0].text}`)
   })
+  chat.addEventHandler((event, data) => {
+    console.log(event, data)
+  })
+  chat.addEventHandler('UserJoin', (data) => {
+    console.log(data)
+  })
   let chatters = await mapi.getChatChatters(user.channel.id)
   console.log('Chatters: ', chatters)
 }).catch(e => console.log(e))
