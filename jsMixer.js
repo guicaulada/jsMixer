@@ -64,7 +64,8 @@ class MixerAPI extends ExtendableProxy {
     let path = require('path')
     fs.writeFile(path.join(__dirname,'refresh_token'), JSON.stringify({
       refresh_token: this.oauth.refresh_token,
-      timestamp: (new Date()).getTime()
+      timestamp: (new Date()).getTime(),
+      scope: this.scope
     }), () => {})
   }
 
@@ -125,7 +126,12 @@ class MixerAPI extends ExtendableProxy {
   async auth(save = true) {
     let token = this.getExistingToken()
     let now = (new Date()).getTime()
-    if (token && !isNaN(token.timestamp) && now - token.timestamp < 365*24*3600*1000) {
+    if (
+      token && 
+      !isNaN(token.timestamp) && 
+      now - token.timestamp < 365*24*3600*1000 && 
+      JSON.stringify(token.scope) == JSON.stringify(this.scope)
+    ) {
       this.oauth = {refresh_token: token.refresh_token}
       await this.refreshToken(save)
     } else {
