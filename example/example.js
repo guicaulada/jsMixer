@@ -17,6 +17,8 @@ mapi.shortcodeAuth().then(async () => {
   chat.addMessageHandler((data) => {
     console.log(`${data.user_name}: ${data.message.message[0].text}`)
   })
+  let chatters = await mapi.getChatChatters(user.channel.id)
+  console.log('Chatters: ', chatters)
 }).catch(e => console.log(e))
 
 // let mapi1 = new MixerAPI(MIXER_CLIENT, MIXER_SECRET, ['user:act_as'])

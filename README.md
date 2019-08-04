@@ -3,7 +3,7 @@
 **jsMixer** is a Javascript module for working with the [Mixer API](https://dev.mixer.com/rest/index.html).
 
 ## Requirements
-* Tested against Mixer API v1.0
+* Tested against Mixer REST API v1.0 and Chat API v2
 * For Node.js you will need the [xmlhttprequest](https://www.npmjs.com/package/xmlhttprequest) library.
 
 ## Documentation ##
@@ -34,10 +34,12 @@ mapi.shortcodeAuth().then(async () => {
   chat.addMessageHandler((data) => {
     console.log(`${data.user_name}: ${data.message.message[0].text}`)
   })
+  let chatters = await mapi.getChatChatters(user.channel.id)
+  console.log('Chatters: ', chatters)
 }).catch(e => console.log(e))
 ```
 
-Refer to the [Mixer API Documentation](https://dev.mixer.com/rest/index.html) and the [jsMixer Example](https://github.com/Sighmir/jsMixer/tree/master/example) for more information.  
+Refer to the [Mixer API Documentation](https://dev.mixer.com/rest/index.html), [Chat Methods](https://dev.mixer.com/reference/chat/methods),  [Chat Events](https://dev.mixer.com/reference/chat/events) and the [jsMixer Example](https://github.com/Sighmir/jsMixer/tree/master/example) for more information.  
 
 ### Browser
 
