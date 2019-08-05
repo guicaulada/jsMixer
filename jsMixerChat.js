@@ -18,11 +18,13 @@ class MixerChat extends ExtendableProxy {
         return parent[name] = value
       },
       get: (parent, name1) => {
+        if (typeof name1 === 'symbol') return parent
         if (parent[name1] != null) return parent[name1]
         if (parent.ws[name1] != null) return parent.ws[name1]
         if (parent.promise[name1] != null) return parent[name1]
         return new Proxy(parent.method(name1), {
-          get: (proxy, name2) => { 
+          get: (proxy, name2) => {
+            if (name2 === 'symbol') return proxy
             return parent.method(`${name1}:${name2}`)
           },
           apply: (proxy, self, args) => {
