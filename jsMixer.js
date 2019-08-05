@@ -148,6 +148,7 @@ class MixerAPI extends ExtendableProxy {
         let args = [channel.id, user.id]
         if (chat.authkey) args.push(chat.authkey)
         this.chats[channel.id] = new MixerChat(chat.endpoints[0])
+        this.chats[channel.token] = this.chats[channel.id]
         this.chats[channel.id].on('open', async () => {
           try {
             await this.chats[channel.id].auth(...args)
