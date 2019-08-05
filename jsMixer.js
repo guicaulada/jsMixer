@@ -150,11 +150,13 @@ class MixerAPI extends ExtendableProxy {
         this.chats[channel.id] = new MixerChat(chat.endpoints[0])
         this.chats[channel.token] = this.chats[channel.id]
         this.chats[channel.id].on('open', async () => {
-          try {
-            await this.chats[channel.id].auth(...args)
-            resolve(this.chats[channel.id])
-          } catch (err) {
-            console.error(err)
+          if (this.chats[channel.id].readyState) {
+            try {
+              await this.chats[channel.id].auth(...args)
+              resolve(this.chats[channel.id])
+            } catch (err) {
+              console.error(err)
+            }
           }
         })
       } catch (err) {
