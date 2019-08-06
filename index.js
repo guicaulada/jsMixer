@@ -1,1 +1,4 @@
-module.exports = require("./jsMixer");
+module.exports = {
+  MixerAPI: require("./jsMixer"),
+  MixerBot: require("./jsMixerBot")
+}

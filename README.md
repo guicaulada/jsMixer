@@ -18,7 +18,7 @@ $ npm install @sighmir/jsmixer
 You can now require and use jsmixer like so:
 
 ```js
-let MixerAPI = require('@sighmir/jsmixer')
+let { MixerAPI } = require('@sighmir/jsmixer')
 
 const MIXER_CLIENT = process.env.MIXER_CLIENT
 const MIXER_SECRET = process.env.MIXER_SECRET
@@ -48,6 +48,7 @@ You can also load this script on your browser like so:
 ```html
 <script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixerChat.js'></script>
 <script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixer.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixerBot.js'></script>
 ```
 
 You can now use the class MixerAPI normally on the page, like you would on Node.js.
