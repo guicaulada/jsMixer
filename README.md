@@ -46,9 +46,9 @@ Refer to the [Mixer API Documentation](https://dev.mixer.com/rest/index.html), [
 You can also load this script on your browser like so:
 
 ```html
-<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixerChat.js'></script>
-<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixer.js'></script>
-<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/jsMixerBot.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/lib/jsMixerChat.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/lib/jsMixer.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/@sighmir/jsmixer/lib/jsMixerBot.js'></script>
 ```
 
 You can now use the class MixerAPI normally on the page, like you would on Node.js.
